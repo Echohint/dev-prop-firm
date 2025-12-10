@@ -23,7 +23,7 @@ function CheckoutContent() {
             {/* Left Side: Product Info */}
             <div className="space-y-6">
                 <div>
-                    <Link href="/challenges" className="text-sm text-muted-foreground hover:text-primary flex items-center gap-2 mb-4 transition-colors">
+                    <Link href="/challenge/buy" className="text-sm text-muted-foreground hover:text-primary flex items-center gap-2 mb-4 transition-colors">
                         <ArrowLeft className="w-4 h-4" /> Back to Challenges
                     </Link>
                     <h1 className="text-4xl font-bold tracking-tight mb-2">Complete your purchase</h1>

@@ -8,24 +8,46 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
-// Mock data for initial render (replace with API fetch)
-const MOCK_ENTRIES = {
-    '2024-12-08': { pnl: 250, notes: 'Great scalp on Gold. Followed rules.' },
-    '2024-12-09': { pnl: -120, notes: 'Chased the pump. Bad discipline.' },
-    '2024-12-10': { pnl: 450, notes: 'Recovery day. Stuck to high probability setups.' },
-};
+// ... imports
+import useSWR, { mutate } from 'swr';
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function JournalPage() {
     const [date, setDate] = useState<Date | undefined>(new Date());
     const [note, setNote] = useState('');
+    const [mood, setMood] = useState<'happy' | 'neutral' | 'frustrated' | 'tilted'>('neutral');
+
+    const { data: entriesData } = useSWR('/api/journal', fetcher);
 
     // Derived state for the selected day
     const dateStr = date?.toISOString().split('T')[0] || '';
-    const entry = MOCK_ENTRIES[dateStr as keyof typeof MOCK_ENTRIES];
 
-    const handleSave = () => {
-        // Here we would call API to save note
-        toast.success(`Journal saved for ${dateStr}`);
+    const { data: dayEntryData, mutate: mutateDay } = useSWR(dateStr ? `/api/journal?date=${dateStr}` : null, fetcher);
+    const entry = dayEntryData?.entry;
+
+    // Map entries for calendar modifiers
+    const entriesMap: Record<string, any> = {};
+    entriesData?.entries?.forEach((e: any) => {
+        entriesMap[e.date] = e;
+    });
+
+    const handleSave = async () => {
+        try {
+            const res = await fetch('/api/journal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date: dateStr, notes: note, mood })
+            });
+
+            if (res.ok) {
+                toast.success(`Journal saved for ${dateStr}`);
+                mutateDay(); // Refresh day entry
+                mutate('/api/journal'); // Refresh calendar
+            }
+        } catch (e) {
+            toast.error("Failed to save journal");
+        }
     };
 
     return (
@@ -50,11 +72,11 @@ export default function JournalPage() {
                             modifiers={{
                                 profit: (d) => {
                                     const s = d.toISOString().split('T')[0];
-                                    return (MOCK_ENTRIES as any)[s]?.pnl > 0;
+                                    return entriesMap[s]?.totalPnl > 0;
                                 },
                                 loss: (d) => {
                                     const s = d.toISOString().split('T')[0];
-                                    return (MOCK_ENTRIES as any)[s]?.pnl < 0;
+                                    return entriesMap[s]?.totalPnl < 0;
                                 }
                             }}
                             modifiersStyles={{
@@ -65,19 +87,9 @@ export default function JournalPage() {
                     </CardContent>
                 </Card>
 
+                {/* Stats cards (could be dynamic later) */}
                 <div className="grid grid-cols-2 gap-4">
-                    <Card>
-                        <CardContent className="pt-6">
-                            <div className="text-sm text-muted-foreground">Monthly P&L</div>
-                            <div className="text-2xl font-bold text-green-500">+$580.00</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardContent className="pt-6">
-                            <div className="text-sm text-muted-foreground">Win Rate</div>
-                            <div className="text-2xl font-bold">66%</div>
-                        </CardContent>
-                    </Card>
+                    {/* ... stats ... */}
                 </div>
             </div>
 
@@ -88,9 +100,9 @@ export default function JournalPage() {
                         <CardTitle className="flex items-center gap-2">
                             Entry for {date?.toLocaleDateString()}
                         </CardTitle>
-                        {entry && (
-                            <Badge variant={entry.pnl >= 0 ? 'default' : 'destructive'} className="text-lg">
-                                {entry.pnl >= 0 ? '+' : ''}${entry.pnl}
+                        {entry && entry.totalPnl !== 0 && (
+                            <Badge variant={entry.totalPnl >= 0 ? 'default' : 'destructive'} className="text-lg">
+                                {entry.totalPnl >= 0 ? '+' : ''}${entry.totalPnl}
                             </Badge>
                         )}
                     </CardHeader>
@@ -100,12 +112,12 @@ export default function JournalPage() {
                             <Textarea
                                 placeholder="How did you feel today? Did you follow your plan?"
                                 className="h-full resize-none p-4 text-lg"
-                                value={note || entry?.notes || ''}
+                                defaultValue={entry?.notes || ''}
                                 onChange={(e) => setNote(e.target.value)}
+                                key={dateStr} // Force re-render on date change
                             />
                         </div>
                         <div className="flex justify-end gap-2">
-                            <Button variant="outline" onClick={() => setNote('')}>Clear</Button>
                             <Button onClick={handleSave}>Save Entry</Button>
                         </div>
                     </CardContent>
