@@ -4,10 +4,10 @@ import Account from '@/models/Account';
 import Trade from '@/models/Trade';
 import JournalEntry from '@/models/JournalEntry'; // To update pnl for the day
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         await connectDB();
-        const { id } = params;
+        const { id } = await params;
         const { outcome, amount, symbol } = await req.json(); // outcome: 'win' | 'loss', amount: risk amount
 
         const account = await Account.findById(id);
