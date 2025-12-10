@@ -88,7 +88,8 @@ function CheckoutContent() {
                         </div>
                     </div>
 
-                    <RazorpayButton amount={priceUSD} currency="USD" />
+
+                    <RazorpayButton amount={priceUSD} currency="USD" plan={plan} />
                 </CardContent>
 
                 <CardFooter className="justify-center">

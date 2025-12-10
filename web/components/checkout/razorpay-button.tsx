@@ -10,9 +10,10 @@ import { Loader2 } from 'lucide-react';
 interface RazorpayButtonProps {
     amount: number; // Amount in USD
     currency?: string;
+    plan: string;
 }
 
-export default function RazorpayButton({ amount, currency = 'USD' }: RazorpayButtonProps) {
+export default function RazorpayButton({ amount, currency = 'USD', plan }: RazorpayButtonProps) {
     const [loading, setLoading] = useState(false);
     const [coupon, setCoupon] = useState('');
     const [discountApplied, setDiscountApplied] = useState(false);
@@ -25,7 +26,7 @@ export default function RazorpayButton({ amount, currency = 'USD' }: RazorpayBut
             const res = await fetch('/api/payment/create-order', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount, currency, couponCode: coupon }),
+                body: JSON.stringify({ amount, currency, couponCode: coupon, plan }),
             });
 
             const data = await res.json();
@@ -45,7 +46,7 @@ export default function RazorpayButton({ amount, currency = 'USD' }: RazorpayBut
                 amount: data.amount,
                 currency: data.currency,
                 name: 'Dev Prop Firm',
-                description: 'Challenge Purchase',
+                description: `Challenge: ${plan}`,
                 order_id: data.orderId,
                 handler: async function (response: any) {
                     // 3. Verify Payment
@@ -62,9 +63,9 @@ export default function RazorpayButton({ amount, currency = 'USD' }: RazorpayBut
                     const verifyData = await verifyRes.json();
 
                     if (verifyData.success) {
-                        toast.success('Payment Successful! Your challenge has been activated.');
-                        // Redirect or refresh
-                        // window.location.href = '/dashboard'; 
+                        toast.success('Payment Successful! Redirecting to setup...');
+                        // Redirect to the new account terminal
+                        window.location.href = `/terminal/${verifyData.accountId}`;
                     } else {
                         toast.error(verifyData.message || 'Verification Failed');
                     }

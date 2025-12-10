@@ -17,7 +17,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { amount, currency = 'INR', couponCode } = await req.json();
+        const { amount, currency = 'INR', couponCode, plan } = await req.json();
 
         if (!amount) {
             return NextResponse.json({ error: 'Amount is required' }, { status: 400 });
@@ -51,6 +51,7 @@ export async function POST(req: Request) {
                 couponCode: couponCode || 'NONE',
                 discount,
                 exchangeRate: EXCHANGE_RATE,
+                plan: plan || 'Unknown',
             },
         };
 

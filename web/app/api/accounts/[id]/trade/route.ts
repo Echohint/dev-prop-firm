@@ -8,7 +8,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     try {
         await connectDB();
         const { id } = await params;
-        const { outcome, amount, symbol } = await req.json(); // outcome: 'win' | 'loss', amount: risk amount
+        const { amount, symbol, type, sl, tp } = await req.json(); // type: 'BUY' | 'SELL'
 
         const account = await Account.findById(id);
         if (!account) {
@@ -19,10 +19,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             return NextResponse.json({ error: 'Account is breached. Trading disabled.' }, { status: 400 });
         }
 
-        // Simulate Trade Result
-        const pnl = outcome === 'win' ? amount * 2 : -amount; // 1:2 Risk Reward simulated
+        // Simulate Trade Result (60% Win Rate for User Gratification)
+        const isWin = Math.random() > 0.4;
+        const pnl = isWin ? amount * 2 : -amount;
+
         const newBalance = account.balance + pnl;
-        const newEquity = account.equity + pnl; // Assuming closed trade for now
+        const newEquity = account.equity + pnl;
 
         // RULE ENGINE
         const currentDailyLoss = account.lastDayBalance - newEquity;
@@ -31,17 +33,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         let newStatus = 'active';
         let failReason = null;
 
-        // Check Max Loss (e.g., 10%)
+        // Check Max Loss
         if (currentMaxLoss >= account.metrics.maxLoss) {
             newStatus = 'failed';
             failReason = 'Max Loss Limit Breached';
         }
 
-        // Check Daily Loss (e.g., 5%)
-        // Note: Logic allows profit to buffer daily loss, standard prop firm rule
+        // Check Daily Loss
         if (currentDailyLoss >= account.metrics.dailyLoss) {
             newStatus = 'failed';
             failReason = 'Daily Loss Limit Breached';
+        }
+
+        // Check Profit Target (Payout Eligibility)
+        const profitTarget = account.metrics.profitTarget || (account.startingBalance * 0.10);
+        if (newEquity >= account.startingBalance + profitTarget && newStatus === 'active') {
+            account.payoutEligible = true;
         }
 
         // Update Account
@@ -56,10 +63,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         const trade = await Trade.create({
             accountId: account._id,
             symbol: symbol || 'BTCUSD',
-            type: outcome === 'win' ? 'BUY' : 'SELL', // Mocking direction
-            entryPrice: 0, // Mock
-            exitPrice: 0, // Mock
+            type: type || 'BUY',
+            entryPrice: Math.random() * 1000 + 1000, // Mock Price
+            exitPrice: Math.random() * 1000 + 1000, // Mock Price
             amount: amount,
+            sl: sl,
+            tp: tp,
             pnl: pnl,
             status: 'CLOSED',
             closedAt: new Date()

@@ -7,6 +7,8 @@ export interface ITrade extends Document {
     entryPrice: number;
     exitPrice?: number;
     amount: number; // Lot size or Dollar amount
+    sl?: number;
+    tp?: number;
     pnl?: number;
     status: 'OPEN' | 'CLOSED';
     closedAt?: Date;
@@ -19,6 +21,8 @@ const TradeSchema = new Schema<ITrade>({
     entryPrice: { type: Number, required: true },
     exitPrice: { type: Number },
     amount: { type: Number, required: true },
+    sl: { type: Number },
+    tp: { type: Number },
     pnl: { type: Number },
     status: { type: String, enum: ['OPEN', 'CLOSED'], default: 'OPEN' },
     closedAt: { type: Date }

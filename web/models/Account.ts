@@ -15,9 +15,12 @@ export interface IAccount extends Document {
     metrics: {
         dailyLoss: number;
         maxLoss: number;
+        profitTarget: number;
         currentDailyLoss: number;
         currentMaxLoss: number;
-    }
+    };
+    payoutEligible: boolean;
+    payoutRequested: boolean;
 }
 
 const AccountSchema = new Schema<IAccount>({
@@ -35,9 +38,12 @@ const AccountSchema = new Schema<IAccount>({
     metrics: {
         dailyLoss: { type: Number, required: true },
         maxLoss: { type: Number, required: true },
+        profitTarget: { type: Number, required: true },
         currentDailyLoss: { type: Number, default: 0 },
         currentMaxLoss: { type: Number, default: 0 }
-    }
+    },
+    payoutEligible: { type: Boolean, default: false },
+    payoutRequested: { type: Boolean, default: false }
 }, { timestamps: true });
 
 export default mongoose.models.Account || mongoose.model<IAccount>("Account", AccountSchema);

@@ -19,22 +19,31 @@ export default function TerminalPage() {
     // Add Symbol State
     const [symbol, setSymbol] = useState("NASDAQ:AAPL");
     const [amount, setAmount] = useState(100);
+    const [sl, setSl] = useState("");
+    const [tp, setTp] = useState("");
     const [processing, setProcessing] = useState(false);
 
     const account = data?.account;
 
-    const handleTrade = async (outcome: 'win' | 'loss') => {
+    const handleTrade = async (type: 'BUY' | 'SELL') => {
         setProcessing(true);
         try {
             const res = await fetch(`/api/accounts/${id}/trade`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ outcome, amount: Number(amount), symbol }), // Pass symbol
+                body: JSON.stringify({
+                    type,
+                    amount: Number(amount),
+                    symbol,
+                    sl: sl ? Number(sl) : undefined,
+                    tp: tp ? Number(tp) : undefined
+                }),
             });
 
             if (res.ok) {
                 mutate(`/api/accounts/${id}`);
-                toast.success(outcome === 'win' ? "Trade Closed in Profit" : "Trade Closed in Loss");
+                const data = await res.json();
+                toast.success(data.message || "Trade Executed");
             } else {
                 const err = await res.json();
                 toast.error(err.error || "Trade failed");
@@ -46,15 +55,34 @@ export default function TerminalPage() {
         }
     };
 
+    const handleRequestPayout = async () => {
+        toast.promise(
+            new Promise((resolve) => setTimeout(resolve, 2000)),
+            {
+                loading: 'Processing Payout Request...',
+                success: 'Payout Request Sent! Check your email.',
+                error: 'Failed to request payout'
+            }
+        );
+        // In real app, call API to trigger payout workflow
+    };
+
     if (isLoading) return <div className="p-8 text-center bg-background h-screen animate-pulse">Loading terminal...</div>;
     if (!account) return <div className="p-8 text-center text-destructive">Account not found.</div>;
+
+    const profitTarget = account.metrics.profitTarget || (account.startingBalance * 0.10);
+    const currentProfit = Math.max(0, account.equity - account.startingBalance);
+    const progress = Math.min(100, (currentProfit / profitTarget) * 100);
 
     return (
         <div className="space-y-4 h-[calc(100vh-80px)] flex flex-col p-4">
             {/* Header / Stats */}
             <div className="flex items-center justify-between bg-card p-4 rounded-lg border shadow-sm">
                 <div className="flex items-center gap-4">
-                    <h1 className="text-2xl font-bold font-mono">#{account.credentials.login}</h1>
+                    <div>
+                        <h1 className="text-xl font-bold font-mono">Challenge Account</h1>
+                        <p className="text-xs text-muted-foreground w-40 truncate">#{account.credentials.login}</p>
+                    </div>
                     <div className="flex items-center gap-2">
                         <Input
                             value={symbol}
@@ -71,6 +99,11 @@ export default function TerminalPage() {
                             <AlertTriangle className="h-4 w-4" />
                             ACCOUNT BREACHED
                         </div>
+                    )}
+                    {account.payoutEligible && account.status === 'active' && (
+                        <Button onClick={handleRequestPayout} className="bg-green-600 hover:bg-green-700 animate-bounce">
+                            Request Payout
+                        </Button>
                     )}
                     <div className="text-right">
                         <div className="text-xs text-muted-foreground uppercase tracking-wider">Equity</div>
@@ -95,21 +128,43 @@ export default function TerminalPage() {
                         <CardTitle>Execution</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">Risk Amount ($)</label>
-                            <Input
-                                type="number"
-                                value={amount}
-                                onChange={(e) => setAmount(Number(e.target.value))}
-                                className="text-lg font-mono"
-                            />
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Risk Amount ($)</label>
+                                <Input
+                                    type="number"
+                                    value={amount}
+                                    onChange={(e) => setAmount(Number(e.target.value))}
+                                    className="text-lg font-mono"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                    <label className="text-xs text-muted-foreground">Stop Loss</label>
+                                    <Input
+                                        placeholder="Price"
+                                        value={sl}
+                                        onChange={(e) => setSl(e.target.value)}
+                                        className="font-mono text-sm"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs text-muted-foreground">Target (TP)</label>
+                                    <Input
+                                        placeholder="Price"
+                                        value={tp}
+                                        onChange={(e) => setTp(e.target.value)}
+                                        className="font-mono text-sm"
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
                             <Button
                                 variant="destructive"
                                 className="h-24 flex flex-col gap-1 text-xl font-bold transition-all hover:scale-[1.02]"
-                                onClick={() => handleTrade('loss')}
+                                onClick={() => handleTrade('SELL')}
                                 disabled={processing || account.status === 'failed'}
                             >
                                 <ArrowDown className="h-8 w-8" />
@@ -117,7 +172,7 @@ export default function TerminalPage() {
                             </Button>
                             <Button
                                 className="h-24 flex flex-col gap-1 text-xl font-bold bg-green-500 hover:bg-green-600 hover:scale-[1.02] transition-all"
-                                onClick={() => handleTrade('win')}
+                                onClick={() => handleTrade('BUY')}
                                 disabled={processing || account.status === 'failed'}
                             >
                                 <ArrowUp className="h-8 w-8" />
@@ -125,37 +180,41 @@ export default function TerminalPage() {
                             </Button>
                         </div>
 
-                        <div className="rounded-lg bg-muted/50 p-4 space-y-3 text-sm border">
-                            <div className="flex justify-between items-center">
-                                <span className="text-muted-foreground">Daily Loss Limit</span>
-                                <span className="font-mono ${account.metrics.currentDailyLoss >= account.metrics.dailyLoss ? 'text-destructive' : ''}">
-                                    ${account.metrics.currentDailyLoss.toFixed(2)} / {account.metrics.dailyLoss}
-                                </span>
-                            </div>
-                            <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden">
-                                <div
-                                    className="bg-destructive h-full transition-all duration-500"
-                                    style={{ width: `${Math.min(100, (account.metrics.currentDailyLoss / account.metrics.dailyLoss) * 100)}%` }}
-                                />
+                        {/* Stats / Progress */}
+                        <div className="rounded-lg bg-muted/50 p-4 space-y-4 text-sm border">
+                            <div className="space-y-1">
+                                <div className="flex justify-between items-center text-xs text-muted-foreground">
+                                    <span>Profit Target</span>
+                                    <span>${currentProfit.toFixed(2)} / {profitTarget}</span>
+                                </div>
+                                <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+                                    <div
+                                        className="bg-primary h-full transition-all duration-500"
+                                        style={{ width: `${progress}%` }}
+                                    />
+                                </div>
                             </div>
 
-                            <div className="flex justify-between items-center mt-2">
-                                <span className="text-muted-foreground">Max Loss Limit</span>
-                                <span className="font-mono ${account.metrics.currentMaxLoss >= account.metrics.maxLoss ? 'text-destructive' : ''}">
-                                    ${account.metrics.currentMaxLoss.toFixed(2)} / {account.metrics.maxLoss}
-                                </span>
-                            </div>
-                            <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden">
-                                <div
-                                    className="bg-destructive h-full transition-all duration-500"
-                                    style={{ width: `${Math.min(100, (account.metrics.currentMaxLoss / account.metrics.maxLoss) * 100)}%` }}
-                                />
+                            <div className="h-px bg-border" />
+
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center text-xs">
+                                    <span className="text-muted-foreground">Daily Loss</span>
+                                    <span className={account.metrics.currentDailyLoss >= account.metrics.dailyLoss ? 'text-destructive font-bold' : ''}>
+                                        ${account.metrics.currentDailyLoss.toFixed(2)} / {account.metrics.dailyLoss}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-center text-xs">
+                                    <span className="text-muted-foreground">Max Loss</span>
+                                    <span className={account.metrics.currentMaxLoss >= account.metrics.maxLoss ? 'text-destructive font-bold' : ''}>
+                                        ${account.metrics.currentMaxLoss.toFixed(2)} / {account.metrics.maxLoss}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
             </div>
-            {/* Logs Area could go here if user requested specific log per session, but we built Journal for that */}
         </div>
     );
 }
