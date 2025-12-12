@@ -9,6 +9,7 @@ export interface ITrade extends Document {
     amount: number; // Lot size or Dollar amount
     sl?: number;
     tp?: number;
+    leverage?: number;
     pnl?: number;
     status: 'OPEN' | 'CLOSED';
     closedAt?: Date;
@@ -23,6 +24,7 @@ const TradeSchema = new Schema<ITrade>({
     amount: { type: Number, required: true },
     sl: { type: Number },
     tp: { type: Number },
+    leverage: { type: Number, default: 1 },
     pnl: { type: Number },
     status: { type: String, enum: ['OPEN', 'CLOSED'], default: 'OPEN' },
     closedAt: { type: Date }

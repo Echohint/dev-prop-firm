@@ -60,6 +60,7 @@ export async function POST(req: Request) {
                 userId: (session.user as any).id,
                 credentials: {
                     login: Math.floor(10000000 + Math.random() * 90000000).toString(), // 8 digit login
+                    password: Math.random().toString(36).slice(-8), // 8 char random password
                     server: 'DevProp-Demo'
                 },
                 balance: balance,

@@ -4,6 +4,7 @@ export interface IAccount extends Document {
     userId: string;
     credentials: {
         login: string;
+        password?: string;
         server: string;
     };
     balance: number;
@@ -21,12 +22,14 @@ export interface IAccount extends Document {
     };
     payoutEligible: boolean;
     payoutRequested: boolean;
+    lastDailyReset: Date;
 }
 
 const AccountSchema = new Schema<IAccount>({
     userId: { type: String, required: true },
     credentials: {
         login: { type: String, required: true },
+        password: { type: String },
         server: { type: String, default: 'Demo' }
     },
     balance: { type: Number, required: true },
@@ -43,7 +46,8 @@ const AccountSchema = new Schema<IAccount>({
         currentMaxLoss: { type: Number, default: 0 }
     },
     payoutEligible: { type: Boolean, default: false },
-    payoutRequested: { type: Boolean, default: false }
+    payoutRequested: { type: Boolean, default: false },
+    lastDailyReset: { type: Date, default: Date.now }
 }, { timestamps: true });
 
 export default mongoose.models.Account || mongoose.model<IAccount>("Account", AccountSchema);

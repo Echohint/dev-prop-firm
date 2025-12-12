@@ -53,8 +53,8 @@ export default function AccountsPage() {
                                         {account.challengeType}
                                     </CardTitle>
                                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${account.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
-                                            account.status === 'failed' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' :
-                                                'bg-gray-100 text-gray-800'
+                                        account.status === 'failed' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' :
+                                            'bg-gray-100 text-gray-800'
                                         }`}>
                                         {account.status}
                                     </span>
@@ -85,11 +85,24 @@ export default function AccountsPage() {
                                         </div>
                                     </div>
 
-                                    <Link href={`/terminal/${account._id}`}>
-                                        <Button variant="outline" className="mt-4 w-full">
-                                            Open Web Terminal
-                                        </Button>
-                                    </Link>
+                                    {account.status === 'failed' ? (
+                                        <div className="space-y-2 mt-4">
+                                            <Button variant="destructive" className="w-full" disabled>
+                                                Account Breached
+                                            </Button>
+                                            <Link href="/challenge/buy" className="block w-full">
+                                                <Button className="w-full bg-primary/90 hover:bg-primary">
+                                                    Start New Challenge
+                                                </Button>
+                                            </Link>
+                                        </div>
+                                    ) : (
+                                        <Link href={`/terminal/${account._id}`}>
+                                            <Button variant="outline" className="mt-4 w-full">
+                                                Open Web Terminal
+                                            </Button>
+                                        </Link>
+                                    )}
 
                                 </CardContent>
                             </Card>

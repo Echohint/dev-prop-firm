@@ -5,45 +5,58 @@ import React, { useEffect, useRef, memo } from 'react';
 interface TradingViewWidgetProps {
     symbol?: string;
     theme?: 'dark' | 'light';
+    autosize?: boolean;
 }
 
-function TradingViewWidget({ symbol = "NASDAQ:AAPL", theme = "dark" }: TradingViewWidgetProps) {
-    const container = useRef<HTMLDivElement>(null);
+let tvScriptLoadingPromise: Promise<void> | undefined;
+
+function TradingViewWidget({ symbol = "NASDAQ:AAPL", theme = "light", autosize = true }: TradingViewWidgetProps) {
+    const onLoadScriptRef = useRef<(() => void) | null>(null);
 
     useEffect(() => {
-        // Clear previous script
-        if (container.current) {
-            container.current.innerHTML = '';
-            const widgetDiv = document.createElement("div");
-            widgetDiv.className = "tradingview-widget-container__widget h-full w-full";
-            container.current.appendChild(widgetDiv);
+        onLoadScriptRef.current = createWidget;
+
+        if (!tvScriptLoadingPromise) {
+            tvScriptLoadingPromise = new Promise((resolve) => {
+                const script = document.createElement('script');
+                script.id = 'tradingview-widget-loading-script';
+                script.src = 'https://s3.tradingview.com/tv.js';
+                script.type = 'text/javascript';
+                script.onload = () => resolve();
+
+                document.head.appendChild(script);
+            });
         }
 
-        const script = document.createElement("script");
-        script.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
-        script.type = "text/javascript";
-        script.async = true;
-        script.innerHTML = JSON.stringify({
-            "autosize": true,
-            "symbol": symbol,
-            "interval": "D",
-            "timezone": "Etc/UTC",
-            "theme": theme,
-            "style": "1",
-            "locale": "en",
-            "enable_publishing": false,
-            "allow_symbol_change": true,
-            "calendar": false,
-            "support_host": "https://www.tradingview.com"
-        });
+        tvScriptLoadingPromise.then(() => onLoadScriptRef.current && onLoadScriptRef.current());
 
-        if (container.current) {
-            container.current.appendChild(script);
+        return () => {
+            onLoadScriptRef.current = null;
+        };
+
+        function createWidget() {
+            if (document.getElementById('tradingview_widget') && 'TradingView' in window) {
+                new (window as any).TradingView.widget({
+                    autosize: true,
+                    symbol: symbol,
+                    interval: "D",
+                    timezone: "Etc/UTC",
+                    theme: theme,
+                    style: "1",
+                    locale: "en",
+                    toolbar_bg: "#f1f3f6",
+                    enable_publishing: false,
+                    allow_symbol_change: true,
+                    container_id: "tradingview_widget"
+                });
+            }
         }
-    }, [symbol, theme]); // Re-run when symbol changes
+    }, [symbol, theme]);
 
     return (
-        <div className="h-full w-full" ref={container} />
+        <div className='tradingview-widget-container h-full w-full'>
+            <div id='tradingview_widget' className='h-full w-full' />
+        </div>
     );
 }
 
